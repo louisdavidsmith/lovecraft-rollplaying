@@ -1,27 +1,14 @@
 repos:
-  - repo: local
+  - repo: https://github.com/ambv/black
+    rev: 22.10.0
     hooks:
-      - id: black
-        name: black
-        entry: black
-        language: system
-        types: [ python ]
-      - id: isort
-        name: isort
-        entry: isort
-        language: system
-        types: [ python ]
-        args: [
-            '--line-length=110',
-            '--multi-line=3',
-            '--force-grid-wrap=0',
-            '--trailing-comma',
-            '--use-parentheses',
-            '--ensure-newline-before-comments',
-        ]
-      - id: flake8
-        name: flake8
-        entry: flake8
-        language: system
-        types: [ python ]
+    - id: black
+  - repo: https://github.com/pycqa/flake8
+    rev: 3.9.2
+    hooks:
+    - id: flake8
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.12.0
+    hooks:
+    - id: isort
 
