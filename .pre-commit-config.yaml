@@ -6,14 +6,11 @@ repos:
         entry: black
         language: system
         types: [ python ]
-        files: ^(app/|tests/)
       - id: isort
         name: isort
         entry: isort
         language: system
         types: [ python ]
-        include: ^(app/|tests/)
-        exclude: '.*/migrations/.*'
         args: [
             '--line-length=110',
             '--multi-line=3',
@@ -27,5 +24,4 @@ repos:
         entry: flake8
         language: system
         types: [ python ]
-        files: ^(app/|tests/)
 
