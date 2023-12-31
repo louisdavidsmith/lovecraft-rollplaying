@@ -19,14 +19,16 @@ class SqlClient:
         res = self.context_table.similarity_search(llm_output, k=top_k)
         return " ".join([x.page_content for x in res])
 
-    def get_relevant_events(self, context: str) -> List[Event]:
-        return None
+    def get_relevant_events(self, content: str) -> List[Event]:
+        res = self.events_table.similarity_search(content, k=10)
+        return [Event(description=event.page_content) for event in res]
 
     def get_history(self):
         return None
 
     def update_events(self, events: List[Event]):
         events = [x.description for x in events]
+        self.events_table.add_texts([events])
 
     def update_history(self, content: str, timestamp: float):
         self.history_db["history"].insert({"content": content, "time_ingested_dt": timestamp})
