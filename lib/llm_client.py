@@ -30,7 +30,7 @@ class LLMClient:
     def invoke(self, user_input: str, history: List[ChatMessage], context: str, game_state: Dict):
         prompt = self._format(context, user_input)
         system_prompt = self._format_system_prompt()
-        model_input = [system_prompt] + history + prompt
+        model_input = [system_prompt] + history + [prompt]
         return self.client.chat_stream(
             model=self.model,
             messages=model_input,
@@ -38,13 +38,11 @@ class LLMClient:
             max_tokens=2048,
         )
 
-    def resolve_skill_check(self, messages: List[ChatMessage], check_result: str):
-        user_input = messages[-1].content
+    def resolve_skill_check(self, user_input: str, history: List[ChatMessage], check_result: str):
         prompt = SKILL_CHECK_PROMPT.format(player_action=user_input, check_result=check_result)
+        prompt = ChatMessage(role="user", content=prompt)
         system_prompt = ChatMessage(role="system", content=SKILL_CHECK_SYSTEM_PROMPT)
-        model_input = [x for x in messages[:-1]]
-        model_input = [system_prompt] + model_input
-        model_input.append(ChatMessage(role="user", content=prompt))
+        model_input = [system_prompt] + history + [prompt]
         return self.client.chat_stream(
             model=self.model,
             messages=model_input,
@@ -52,9 +50,7 @@ class LLMClient:
             max_tokens=2048,
         )
 
-    def bout_of_insanity(self, llm_response, current_sanity):
-        embedding = self.embed(llm_response)
-        context = self.db.get_context(embedding)
+    def bout_of_insanity(self, llm_response: str, context: str, current_sanity: int):
         content = SANITY_PROMPT.format(context=context, llm_response=llm_response, current_sanity=current_sanity)
         system_prompt = ChatMessage(role="system", content=SANITY_SYSTEM_PROMPT)
         prompt = ChatMessage(role="user", content=content)
