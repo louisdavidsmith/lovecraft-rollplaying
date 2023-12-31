@@ -1,6 +1,7 @@
+from typing import Dict, List
+
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
-from pinecone_client import PineconeClient
 from prompts import (
     CHARACTER_STATE_PROMPT,
     EVENT_STATE_PROMPT,
@@ -19,25 +20,17 @@ class LLMClient:
         self.client = MistralClient(api_key=api_key)
         self.model = "mistral-medium"
         self.system_prompt = ChatMessage(role="system", content=" ".join(SYSTEM_PROMPT.split()))
-        self.db = PineconeClient()
 
-    def _format_system_prompt(self):
-        game_state = open("game_state.json").read()
+    def _format_system_prompt(self, game_state: Dict) -> ChatMessage:
         return ChatMessage(role="system", content=SYSTEM_PROMPT.format(game_state=game_state))
 
-    def _format(self, context, user_input):
-        return USER_PROMPT.format(context=context, user_input=user_input)
+    def _format(self, context: str, user_input: str) -> ChatMessage:
+        return ChatMessage(role="user", content=USER_PROMPT.format(context=context, user_input=user_input))
 
-    def invoke(self, messages):
-        user_input = messages[-1].content
-        context_input = " ".join([message.content for message in messages])[-2000:]
-        embedding = self.embed(context_input)
-        context = self.db.get_context(embedding)
+    def invoke(self, user_input: str, history: List[ChatMessage], context: str, game_state: Dict):
         prompt = self._format(context, user_input)
         system_prompt = self._format_system_prompt()
-        model_input = [x for x in messages[:-1]]
-        model_input = [system_prompt] + model_input
-        model_input.append(ChatMessage(role="user", content=prompt))
+        model_input = [system_prompt] + history + prompt
         return self.client.chat_stream(
             model=self.model,
             messages=model_input,
@@ -45,7 +38,7 @@ class LLMClient:
             max_tokens=2048,
         )
 
-    def resolve_skill_check(self, messages, check_result):
+    def resolve_skill_check(self, messages: List[ChatMessage], check_result: str):
         user_input = messages[-1].content
         prompt = SKILL_CHECK_PROMPT.format(player_action=user_input, check_result=check_result)
         system_prompt = ChatMessage(role="system", content=SKILL_CHECK_SYSTEM_PROMPT)
