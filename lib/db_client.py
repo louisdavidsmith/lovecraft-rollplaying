@@ -13,7 +13,7 @@ class SqlClient:
         self.state_db = SQLiteVSS.create_connection(db_file=f"/data/{adventure_name}_{save_name}_state.db")
         self.history_db = Database(db_file=f"/data/{adventure_name}_history.db")
         self.context_table = SQLiteVSS(table="mythos", embedding=self.embeddings, connection=self.mythos_db)
-        self.events_table = "adventure-events"
+        self.events_table = SQLiteVSS(table="events", embedding=self.embeddings, connection=self.mythos_db)
 
     def get_adventure_context(self, llm_output: str, top_k=4) -> str:
         res = self.context_table.similarity_search(llm_output, k=top_k)
