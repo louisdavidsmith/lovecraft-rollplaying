@@ -3,6 +3,7 @@ from typing import List
 from data_models import Event
 from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 from langchain.vectorstores import SQLiteVSS
+from mistralai.models.chat_completion import ChatMessage
 from sqlite_utils import Database
 
 
@@ -23,8 +24,11 @@ class SqlClient:
         res = self.events_table.similarity_search(content, k=10)
         return [Event(description=event.page_content) for event in res]
 
-    def get_recent_history(self, n_results: int) -> List[str]:
-        return None
+    def get_recent_history(self, n_results: int) -> List[ChatMessage]:
+        query = f"""SELECT content, role, time_ingested_dt FROM history order
+        by time_ingested_dt desc LIMIT {n_results}"""
+        res = self.history_db.query(query)
+        return [ChatMessage(role=content["role"], content=content["content"]) for content in list(res)]
 
     def update_events(self, events: List[Event]):
         events = [x.description for x in events]
