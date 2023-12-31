@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+from data_models import Event
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from prompts import (
@@ -19,7 +20,6 @@ class LLMClient:
     def __init__(self, api_key):
         self.client = MistralClient(api_key=api_key)
         self.model = "mistral-medium"
-        self.system_prompt = ChatMessage(role="system", content=" ".join(SYSTEM_PROMPT.split()))
 
     def _format_system_prompt(self, game_state: Dict) -> ChatMessage:
         return ChatMessage(role="system", content=SYSTEM_PROMPT.format(game_state=game_state))
@@ -62,11 +62,11 @@ class LLMClient:
             max_tokens=2048,
         )
 
-    def update_event_state(self, game_state, llm_response):
+    def update_event_state(self, event_history: List[Event], llm_response: str) -> str:
         state_system_prompt = ChatMessage(role="system", content=EVENT_STATE_PROMPT)
         inputs = [
             state_system_prompt,
-            ChatMessage(role="user", content=UPDATE_STATE_PROMPT.format(game_state=game_state, llm_response=llm_response)),
+            ChatMessage(role="user", content=UPDATE_STATE_PROMPT.format(game_state=event_history, llm_response=llm_response)),
         ]
         response = self.client.chat_stream(model=self.model, messages=inputs)
         full_response = ""
