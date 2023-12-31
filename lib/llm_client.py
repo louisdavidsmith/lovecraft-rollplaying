@@ -4,7 +4,6 @@ from data_models import Event
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from prompts import (
-    CHARACTER_STATE_PROMPT,
     EVENT_STATE_PROMPT,
     SANITY_PROMPT,
     SANITY_SYSTEM_PROMPT,
@@ -73,19 +72,3 @@ class LLMClient:
         for token in response:
             full_response += token.choices[0].delta.content or ""
         return full_response
-
-    def update_npc_state(self, game_state, llm_response):
-        state_system_prompt = ChatMessage(role="system", content=CHARACTER_STATE_PROMPT)
-        inputs = [
-            state_system_prompt,
-            ChatMessage(role="user", content=UPDATE_STATE_PROMPT.format(game_state=game_state, llm_response=llm_response)),
-        ]
-        response = self.client.chat_stream(model=self.model, messages=inputs)
-        full_response = ""
-        for token in response:
-            full_response += token.choices[0].delta.content or ""
-        return full_response
-
-    def embed(self, text):
-        response = self.client.embeddings(model="mistral-embed", input=text)
-        return response.data[0].embedding
