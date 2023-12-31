@@ -1,6 +1,3 @@
-import os
-
-from dotenv import load_dotenv
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from pinecone_client import PineconeClient
@@ -16,14 +13,10 @@ from prompts import (
     USER_PROMPT,
 )
 
-load_dotenv()
-
-MISTRAL_KEY = os.getenv("MISTREAL")
-
 
 class LLMClient:
-    def __init__(self):
-        self.client = MistralClient(api_key=MISTRAL_KEY)
+    def __init__(self, api_key):
+        self.client = MistralClient(api_key=api_key)
         self.model = "mistral-medium"
         self.system_prompt = ChatMessage(role="system", content=" ".join(SYSTEM_PROMPT.split()))
         self.db = PineconeClient()
