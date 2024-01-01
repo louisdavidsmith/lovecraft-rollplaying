@@ -13,7 +13,7 @@ from lovecraft.db_client import SqlClient
 from lovecraft.llm_client import LLMClient
 from lovecraft.sanity_model import SanityModel
 from lovecraft.skill_model import SkillModel
-from request_types import AppendMessage, NarrationRequest
+from request_types import AppendMessage, LLMResponse, NarrationRequest, ResolveSkillCheckRequest
 
 
 def stream_tokens(response) -> List[str]:
@@ -76,13 +76,13 @@ def init_adventure():
 
 # llm client
 @app.post("/narrate")
-def get_narration(narration_request: NarrationRequest):
+def get_narration(request: NarrationRequest):
     history = ConversationHistory.main()
-    ConversationHistory.append(ChatMessage(role="user", content=narration_request.user_input))
+    ConversationHistory.append(ChatMessage(role="user", content=request.user_input))
     context_input = " ".join([message.content for message in history])[-2000:]
     context = db_client.get_adventure_context(context_input)
     game_state = db_client.get_relevant_events(context_input)
-    response = llm_client.invoke(narration_request.user_input, history, context, game_state)
+    response = llm_client.invoke(request.user_input, history, context, game_state)
     return StreamingResponse(stream_tokens(response), media_type="text/event-stream")
 
 
@@ -103,9 +103,12 @@ def empty_history():
     return 200
 
 
-@app.get("/narrate_resolve_skill_check")
-def resolve_skill_check():
-    return "skill check resolve"
+@app.post("/narrate_resolve_skill_check")
+def resolve_skill_check(request: ResolveSkillCheckRequest):
+    history = ConversationHistory.main()
+    ConversationHistory.append(ChatMessage(role="user", content=request.user_input))
+    response = llm_client.resolve_skill_check(request.user_input, history, request.check_result)
+    return StreamingResponse(stream_tokens(response), media_type="text/event-stream")
 
 
 @app.get("/narrate_bout_of_insanity")
@@ -124,13 +127,13 @@ def determine_if_skill_check(request: NarrationRequest):
 @app.post("/do_skill_check")
 def do_skill_check(request: NarrationRequest):
     selected_skill = skill.select_skill(request.user_input)
-    return skill.perform_check(character_data[selected_skill])
+    return skill.perform_check(character_data.dict()[selected_skill])
 
 
 # sanity model
 @app.post("/determine_if_sanity_check")
-def determine_if_sanity_check():
-    return "cause insanity?"
+def determine_if_sanity_check(request: LLMResponse):
+    return sanity.predict(request.llm_response)
 
 
 @app.get("/do_sanity_check")
