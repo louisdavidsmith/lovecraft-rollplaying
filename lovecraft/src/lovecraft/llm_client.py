@@ -1,9 +1,10 @@
 from typing import Dict, List
 
-from data_models import Event
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
-from prompts import (
+
+from .data_models import Event
+from .prompts import (
     EVENT_STATE_PROMPT,
     SANITY_PROMPT,
     SANITY_SYSTEM_PROMPT,

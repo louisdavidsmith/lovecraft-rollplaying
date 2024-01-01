@@ -1,10 +1,11 @@
 from typing import List
 
-from data_models import Event
 from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 from langchain.vectorstores import SQLiteVSS
 from mistralai.models.chat_completion import ChatMessage
 from sqlite_utils import Database
+
+from .data_models import Event
 
 
 class SqlClient:
