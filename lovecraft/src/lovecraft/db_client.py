@@ -6,14 +6,15 @@ from mistralai.models.chat_completion import ChatMessage
 from sqlite_utils import Database
 
 from .data_models import Event
+from .utils import create_vss_connection
 
 
 class SqlClient:
     def __init__(self, adventure_name: str, save_name: str):
         self.embeddings = SentenceTransformerEmbeddings(model_name="jinaai/jina-embedding-l-en-v1")
-        self.mythos_db = SQLiteVSS.create_connection(db_file="/data/lovecraft.db")
-        self.state_db = SQLiteVSS.create_connection(db_file=f"/data/{adventure_name}_{save_name}_state.db")
-        self.history_db = Database(db_file=f"/data/{adventure_name}_history.db")
+        self.mythos = SQLiteVSS(table="mythos", embedding=self.embeddings, connection=create_vss_connection("data/lovecraft.db"))
+        self.state_db = SQLiteVSS.create_connection(db_file=f"data/{adventure_name}_{save_name}_state.db")
+        self.history_db = Database(f"data/{adventure_name}_history.db")
         self.context_table = SQLiteVSS(table="mythos", embedding=self.embeddings, connection=self.mythos_db)
         self.events_table = SQLiteVSS(table="events", embedding=self.embeddings, connection=self.mythos_db)
 
