@@ -1,3 +1,4 @@
+import sqlite3
 from typing import List
 
 from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
@@ -13,8 +14,8 @@ class SqlClient:
     def __init__(self, adventure_name: str, save_name: str):
         self.embeddings = SentenceTransformerEmbeddings(model_name="jinaai/jina-embedding-s-en-v1")
         self.mythos_db = create_vss_connection("data/lovecraft.db")
-        self.state_db = SQLiteVSS.create_connection(db_file=f"data/{adventure_name}_{save_name}_state.db")
-        self.history_db = Database(f"data/{adventure_name}_history.db")
+        self.state_db = create_vss_connection(f"data/{adventure_name}_{save_name}_state.db")
+        self.history_db = Database(sqlite3.connect(f"data/{adventure_name}_history.db", check_same_thread=False))
         self.context_table = SQLiteVSS(table="mythos", embedding=self.embeddings, connection=self.mythos_db)
         self.events_table = SQLiteVSS(table="events", embedding=self.embeddings, connection=self.mythos_db)
 
