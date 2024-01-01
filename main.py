@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from mistralai.models.chat_completion import ChatMessage
 from structlog import get_logger
 
-from lovecraft.data_models import Scenario
+from lovecraft.data_models import CharacterData, Scenario
 from lovecraft.db_client import SqlClient
 from lovecraft.llm_client import LLMClient
 from lovecraft.sanity_model import SanityModel
@@ -32,6 +32,8 @@ with open("config.json") as f:
     config = json.loads(f.read())
 
 game_state = Scenario.model_validate(json.loads(open("game_state.json").read()))
+
+character_data = CharacterData.model_validate(json.loads(open("character_data.json").read()))
 
 llm_client = LLMClient(MISTRAL_KEY)
 logger.info("LoadedLLMClient")
@@ -113,21 +115,20 @@ def narrate_insanity():
 
 # to do: add event update
 
-# skill check model
-@app.get("/determine_if_skill_check")
-def determine_if_skill_check():
-    return "skill check"
+
+@app.post("/determine_if_skill_check")
+def determine_if_skill_check(request: NarrationRequest):
+    return skill.do_check(request.user_input)
 
 
-@app.get("/do_skill_check")
-def do_skill_check():
-    # select skill
-    # perform skill check
-    return "skill check"
+@app.post("/do_skill_check")
+def do_skill_check(request: NarrationRequest):
+    selected_skill = skill.select_skill(request.user_input)
+    return skill.perform_check(character_data[selected_skill])
 
 
 # sanity model
-@app.get("/determine_if_sanity_check")
+@app.post("/determine_if_sanity_check")
 def determine_if_sanity_check():
     return "cause insanity?"
 
