@@ -27,6 +27,9 @@ class LLMClient:
     def _format(self, context: str, user_input: str) -> ChatMessage:
         return ChatMessage(role="user", content=USER_PROMPT.format(context=context, user_input=user_input))
 
+    def generate(self, user_input="What is 2+2"):
+        return self.client.chat_stream(model=self.model, messages=[ChatMessage(role="user", content=user_input)], max_tokens=128)
+
     def invoke(self, user_input: str, history: List[ChatMessage], context: str, game_state: Dict):
         prompt = self._format(context, user_input)
         system_prompt = self._format_system_prompt()
