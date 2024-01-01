@@ -16,7 +16,7 @@ class SkillModel:
             5: "The player is sucessful at the task",
             4: "The player is sucessful at the task, but there is an unexpected negative outcome or complication" "",
             3: "The player fails at the task but there is an unexpected boon that comes the players way.",
-            2: "The player fails at the task without additonal complications",
+            2: "The player fails at the task without additional complications",
             1: "The player fails at the task and there are negative complications",
         }
 
