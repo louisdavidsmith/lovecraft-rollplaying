@@ -11,7 +11,7 @@ from .utils import create_vss_connection
 
 class SqlClient:
     def __init__(self, adventure_name: str, save_name: str):
-        self.embeddings = SentenceTransformerEmbeddings(model_name="jinaai/jina-embedding-l-en-v1")
+        self.embeddings = SentenceTransformerEmbeddings(model_name="jinaai/jina-embedding-s-en-v1")
         self.mythos_db = create_vss_connection("data/lovecraft.db")
         self.state_db = SQLiteVSS.create_connection(db_file=f"data/{adventure_name}_{save_name}_state.db")
         self.history_db = Database(f"data/{adventure_name}_history.db")
