@@ -61,6 +61,10 @@ class ConversationHistory:
     def empty_history(self):
         self._messages = []
 
+    @classmethod
+    def get_history(self):
+        return [{"role": message.role, "content": message.content} for message in self._messages]
+
 
 @app.get("/init_adventure")
 def init_adventure():
@@ -84,6 +88,11 @@ def get_narration(narration_request: NarrationRequest):
 def append_message(request: AppendMessage) -> int:
     ConversationHistory.append(ChatMessage(role=request.role, content=request.content))
     return 200
+
+
+@app.get("/get_history")
+def get_history():
+    return ConversationHistory.get_history()
 
 
 @app.get("/empty_history")
