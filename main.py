@@ -3,12 +3,12 @@ import os
 from typing import List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, FastAPI
 from fastapi.responses import StreamingResponse
 from mistralai.models.chat_completion import ChatMessage
 from structlog import get_logger
 
-from lovecraft.data_models import CharacterData, Scenario
+from lovecraft.data_models import CharacterData, Event, Scenario
 from lovecraft.db_client import SqlClient
 from lovecraft.llm_client import LLMClient
 from lovecraft.sanity_model import SanityModel
@@ -81,7 +81,8 @@ def get_narration(request: NarrationRequest):
     ConversationHistory.append(ChatMessage(role="user", content=request.user_input))
     context_input = " ".join([message.content for message in history])[-2000:]
     context = db_client.get_adventure_context(context_input)
-    game_state = db_client.get_relevant_events(context_input)
+    relevant_events = db_client.get_relevant_events(context_input)
+    game_state.events = relevant_events
     response = llm_client.invoke(request.user_input, history, context, game_state)
     return StreamingResponse(stream_tokens(response), media_type="text/event-stream")
 
@@ -90,6 +91,13 @@ def get_narration(request: NarrationRequest):
 def append_message(request: AppendMessage) -> int:
     ConversationHistory.append(ChatMessage(role=request.role, content=request.content))
     return 200
+
+
+@app.post("/update_game_state")
+async def update_game_state(request: LLMResponse, background_task: BackgroundTasks):
+    past_events = db_client.get_relevant_events(request.llm_response)
+    new_events = llm_client.update_event_state(past_events, request.llm_response)
+    db_client.update_events([Event(**event) for event in json.loads(new_events)])
 
 
 @app.get("/get_history")
@@ -141,6 +149,13 @@ def do_sanity_check() -> bool:
     return sanity.check_sanity(character_data.sanity)
 
 
-@app.get("/assess_sanity_loss")
-def assess_sanity_loss():
-    return "sanity"
+@app.post("/assess_sanity_loss")
+def assess_sanity_loss(request: LLMResponse):
+    new_sanity = sanity.assess_sanity(request.llm_response, character_data.sanity)
+    character_data.sanity = new_sanity
+    return 200
+
+
+@app.get("/current_sanity")
+def return_current_sanity():
+    return {"character_sanity": character_data.sanity}

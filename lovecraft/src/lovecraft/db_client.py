@@ -17,7 +17,7 @@ class SqlClient:
         self.state_db = create_vss_connection(f"data/{adventure_name}_{save_name}_state.db")
         self.history_db = Database(sqlite3.connect(f"data/{adventure_name}_history.db", check_same_thread=False))
         self.context_table = SQLiteVSS(table="mythos", embedding=self.embeddings, connection=self.mythos_db)
-        self.events_table = SQLiteVSS(table="events", embedding=self.embeddings, connection=self.mythos_db)
+        self.events_table = SQLiteVSS(table="events", embedding=self.embeddings, connection=self.state_db)
 
     def get_adventure_context(self, llm_output: str, top_k=4) -> str:
         res = self.context_table.similarity_search(llm_output, k=top_k)
@@ -34,8 +34,8 @@ class SqlClient:
         return [ChatMessage(role=content["role"], content=content["content"]) for content in list(res)]
 
     def update_events(self, events: List[Event]):
-        events = [x.description for x in events]
-        self.events_table.add_texts([events])
+        payload = [x.description for x in events]
+        self.events_table.add_texts(payload)
 
     def update_history(self, content: List[str], role: List[str], timestamp: List[float]):
         self.history_db["history"].insert(

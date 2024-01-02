@@ -32,7 +32,7 @@ class LLMClient:
 
     def invoke(self, user_input: str, history: List[ChatMessage], context: str, game_state: Dict):
         prompt = self._format(context, user_input)
-        system_prompt = self._format_system_prompt()
+        system_prompt = self._format_system_prompt(game_state)
         model_input = [system_prompt] + history + [prompt]
         return self.client.chat_stream(
             model=self.model,
