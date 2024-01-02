@@ -74,6 +74,16 @@ def init_adventure():
     return 200
 
 
+@app.get("/adventure_name")
+def get_adventure_name() -> str:
+    return config["adventure_name"]
+
+
+@app.get("/character_data")
+def get_character_data() -> CharacterData:
+    return character_data
+
+
 # llm client
 @app.post("/narrate")
 def get_narration(request: NarrationRequest):
