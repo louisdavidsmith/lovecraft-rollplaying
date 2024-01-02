@@ -15,6 +15,7 @@ class PlayerCharacter(BaseModel):
 class CharacterData(BaseModel):
     name: str
     adventure_name: str
+    sanity: int
     physical: int
     wits: int
     social: int
