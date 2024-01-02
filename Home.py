@@ -1,46 +1,54 @@
-import json
-import os
-import random
-import re
-import shutil
-import time
+from typing import Dict
 
+import httpx
 import streamlit as st
-from llm_client import SYSTEM_PROMPT, LLMClient
-from mistralai.models.chat_completion import ChatMessage
-from sanity_model import SanityModel
-from skill_model import SkillModel
 from structlog import get_logger
+
+from request_types import AppendMessage, LLMResponse, NarrationRequest, ResolveSkillCheckRequest
+
+url = "http://127.0.0.1:8000"
+
+
+class Request:
+    def __init__(self, url: str):
+        self.url = url
+        self.path = "{url}/{path}"
+
+    def post(self, path: str, data: Dict):
+        return httpx.post(self.path.format(url=self.url, path=path), json=data).json()
+
+    def get(self, path: str):
+        return httpx.get(self.path.format(url=self.url, path=path)).json()
+
+    def stream(self, path: str, data: Dict):
+        url = self.path.format(url=self.url, path=path)
+        return httpx.stream("POST", url, json=data, timeout=120)
+
+
+request = Request(url)
 
 logger = get_logger("app")
 
 st.title("Roleplaying in the Eldritch Horror of H.P. Lovecraft")
 
-llm_client = LLMClient()
-sanity_client = SanityModel()
-skill_model = SkillModel()
-
-adventures = scenarios = list(os.walk("scenarios"))[0][1]
 
 tokens = None
-
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if 'sanity' not in st.session_state:
-    st.session_state.sanity = 100
+if "sanity" not in st.session_state:
+    st.session_state.sanity = request.get("current_sanity")["character_sanity"]
 
-if 'character_attributes' not in st.session_state:
-    character = json.loads(open("character_data.json").read())
-    st.session_state.character_attributes = character
+if "character_attributes" not in st.session_state:
+    st.session_state.character_attributes = request.get("character_data")
 
 with st.sidebar:
     adventure_name = st.session_state.character_attributes["adventure_name"]
     st.text(f"You are currently playing {adventure_name}")
     character_name = st.session_state.character_attributes["name"]
-    st.image("investigator.jpeg", caption=character_name)
-    st.text(f'Your current sanity is {st.session_state.sanity}')
+    st.text(character_name)
+    st.text(f"Your current sanity is {st.session_state.sanity}")
 
 message_placeholder = st.empty()
 
@@ -48,12 +56,12 @@ message_placeholder = st.empty()
 for message in st.session_state.messages:
     with st.chat_message(message.role):
         st.markdown(message.content)
-full_response=""
+full_response = ""
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
     # Add user message to chat history
-    st.session_state.messages.append(ChatMessage(role="user", content=prompt))
+    st.session_state.messages.append({"role": "user", "content": prompt})
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -61,46 +69,36 @@ if prompt := st.chat_input("What is up?"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         full_response = ""
-    if skill_model.do_check(prompt):
-        skill = skill_model.select_skill(prompt)
-        logger.info("SkillCheck", skill=skill)
-        check_result = skill_model.perform_check(
-                                st.session_state.character_attributes[skill]
-                            )
-        logger.info("CheckResult", skill=skill, result=check_result)
-        tokens = llm_client.resolve_skill_check(st.session_state.messages,
-                                            check_result)
+    narration_request = NarrationRequest(user_input=prompt)
+    if request.post("determine_if_skill_check", narration_request.model_dump(mode="json")):
+        logger.info("DetermineSkillCheck", result=True)
+        skill_check_result = request.post("do_skill_check", narration_request.model_dump(mode="json"))
+        logger.info("SkillChecked", result=skill_check_result)
+        resolve_skill_check_request = ResolveSkillCheckRequest(user_input=prompt, check_result=skill_check_result)
+        tokens = request.stream("narrate_resolve_skill_check", resolve_skill_check_request.model_dump(mode="json"))
     else:
-        tokens = llm_client.invoke(st.session_state.messages)
-
+        tokens = request.stream("narrate", narration_request.model_dump(mode="json"))
 if tokens:
-    for response in tokens:
-        full_response += (response.choices[0].delta.content or "")
-        message_placeholder.markdown(full_response + "▌")
-        if "USER_INPUT" in full_response:
-            break
-        if "What do you want to do next?" in full_response:
-            break
-    full_response = full_response.replace("What do you want to do next?", "")
-    sanity_check = sanity_client.predict(full_response)
-    logger.info("SanityCheck", value=sanity_check)
-    if sanity_check == 1:
-        check_value = random.randrange(110)
-        logger.info("SanityCheckValue", value=check_value)
-        if check_value > st.session_state.sanity:
-            full_response += "\n "
-            for response in llm_client.bout_of_insanity(full_response, st.session_state.sanity):
-                full_response += (response.choices[0].delta.content or "")
+    with tokens as r:
+        for payload in r.iter_raw():
+            full_response += payload.decode("UTF-8")
+            message_placeholder.markdown(full_response + "▌")
+            if "USER_INPUT" in full_response:
+                break
+            if "What do you want to do next?" in full_response:
+                break
+        full_response = full_response.replace("What do you want to do next?", "")
+    llm_response = LLMResponse(llm_response=full_response)
+    cause_insanity = request.post("determine_if_sanity_check", llm_response.model_dump(mode="json"))
+    if cause_insanity == 1:
+        tokens = request.stream("narrate_bout_of_insanity", llm_response.model_dump(mode="json"))
+        with tokens as r:
+            for payload in r.iter_raw():
+                full_response += payload.decode("UTF-8")
                 message_placeholder.markdown(full_response + "▌")
-            pattern = r'CURRENT\\?_SANITY\s?=\s?(\d+)\*?'
-            current_sanity = re.search(pattern, full_response)
-            if current_sanity:
-                result = int(current_sanity.group(1))
-                st.session_state.sanity = result
-            else:
-                st.session_state.sanity -= 10
-        else:
-            pass
-    with open('history.txt', 'a+') as f:
-        f.write(f" ".join(full_response.split("\n")) + "\n")
-    st.session_state.messages.append(ChatMessage(role="assistant", content=full_response))
+        llm_response.llm_response = full_response
+        request.post("assess_sanity_loss", llm_response.model_dump(mode="json"))
+    message = AppendMessage(role="assistant", content=full_response)
+    request.post("append_message", message.model_dump(mode="json"))
+    request.post("update_game_state", llm_response.model_dump(mode="json"))
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
