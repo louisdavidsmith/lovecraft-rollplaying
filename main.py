@@ -111,12 +111,13 @@ def resolve_skill_check(request: ResolveSkillCheckRequest):
     return StreamingResponse(stream_tokens(response), media_type="text/event-stream")
 
 
-@app.get("/narrate_bout_of_insanity")
-def narrate_insanity():
-    return "insanity"
-
-
-# to do: add event update
+@app.post("/narrate_bout_of_insanity")
+def narrate_insanity(request: LLMResponse):
+    history = ConversationHistory.main()
+    context_input = " ".join([message.content for message in history])[-2000:]
+    context = db_client.get_adventure_context(context_input)
+    response = llm_client.bout_of_insanity(request.llm_response, context, character_data.sanity)
+    return StreamingResponse(stream_tokens(response), media_type="text/event-stream")
 
 
 @app.post("/determine_if_skill_check")
@@ -130,38 +131,16 @@ def do_skill_check(request: NarrationRequest):
     return skill.perform_check(character_data.dict()[selected_skill])
 
 
-# sanity model
 @app.post("/determine_if_sanity_check")
 def determine_if_sanity_check(request: LLMResponse):
     return sanity.predict(request.llm_response)
 
 
 @app.get("/do_sanity_check")
-def do_sanity_check():
-    return "True/false"
+def do_sanity_check() -> bool:
+    return sanity.check_sanity(character_data.sanity)
 
 
 @app.get("/assess_sanity_loss")
 def assess_sanity_loss():
     return "sanity"
-
-
-# db client
-@app.get("/get_mythos_context")
-def get_mythos_context():
-    return "context"
-
-
-@app.get("/get_relevant_events")
-def get_relevant_events():
-    return ""
-
-
-@app.get("/get_recent_history")
-def get_recent_history():
-    return ""
-
-
-# @app.get('/invoke_llm')
-# def test():
-#    return StreamingResponse(stream_tokens(llm_client.generate()), media_type='text/event-stream')
