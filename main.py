@@ -28,12 +28,12 @@ MISTRAL_KEY = os.environ["MISTRAL"]
 
 app = FastAPI()
 
-with open("config.json") as f:
+with open("game_files/config.json") as f:
     config = json.loads(f.read())
 
-game_state = Scenario.model_validate(json.loads(open("game_state.json").read()))
+game_state = Scenario.model_validate(json.loads(open("game_files/game_state.json").read()))
 
-character_data = CharacterData.model_validate(json.loads(open("character_data.json").read()))
+character_data = CharacterData.model_validate(json.loads(open("game_files/character_data.json").read()))
 
 llm_client = LLMClient(MISTRAL_KEY)
 logger.info("LoadedLLMClient")
