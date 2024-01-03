@@ -1,9 +1,8 @@
 import random
 
+from attributes import attributes
 from sentence_transformers.cross_encoder import CrossEncoder
 from setfit import SetFitModel
-
-from .attributes import attributes
 
 
 class SkillModel:

@@ -1,10 +1,9 @@
 from typing import Dict, List
 
+from data_models import Event
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
-
-from .data_models import Event
-from .prompts import (
+from prompts import (
     EVENT_STATE_PROMPT,
     SANITY_PROMPT,
     SANITY_SYSTEM_PROMPT,
@@ -27,9 +26,6 @@ class LLMClient:
     def _format(self, context: str, user_input: str) -> ChatMessage:
         return ChatMessage(role="user", content=USER_PROMPT.format(context=context, user_input=user_input))
 
-    def generate(self, user_input="What is 2+2"):
-        return self.client.chat_stream(model=self.model, messages=[ChatMessage(role="user", content=user_input)], max_tokens=128)
-
     def invoke(self, user_input: str, history: List[ChatMessage], context: str, game_state: Dict):
         prompt = self._format(context, user_input)
         system_prompt = self._format_system_prompt(game_state)
@@ -37,8 +33,8 @@ class LLMClient:
         return self.client.chat_stream(
             model=self.model,
             messages=model_input,
-            temperature=0.5,
-            max_tokens=2048,
+            temperature=0.8,
+            max_tokens=512,
         )
 
     def resolve_skill_check(self, user_input: str, history: List[ChatMessage], check_result: str):
@@ -49,8 +45,8 @@ class LLMClient:
         return self.client.chat_stream(
             model=self.model,
             messages=model_input,
-            temperature=0.5,
-            max_tokens=2048,
+            temperature=0.8,
+            max_tokens=512,
         )
 
     def bout_of_insanity(self, llm_response: str, context: str, current_sanity: int):
@@ -61,8 +57,8 @@ class LLMClient:
         return self.client.chat_stream(
             model=self.model,
             messages=model_input,
-            temperature=0.5,
-            max_tokens=2048,
+            temperature=0.8,
+            max_tokens=512,
         )
 
     def update_event_state(self, event_history: List[Event], llm_response: str) -> str:
