@@ -1,12 +1,13 @@
 import sqlite3
 from typing import List
 
-from data_models import Event
 from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 from langchain.vectorstores import SQLiteVSS
 from mistralai.models.chat_completion import ChatMessage
 from sqlite_utils import Database
-from utils import create_vss_connection
+
+from module.data_models import Event
+from module.utils import create_vss_connection
 
 
 class SqlClient:
@@ -14,7 +15,7 @@ class SqlClient:
         self.embeddings = SentenceTransformerEmbeddings(model_name="jinaai/jina-embedding-s-en-v1")
         self.mythos_db = create_vss_connection("data/lovecraft.db")
         self.state_db = create_vss_connection(f"data/{adventure_name}_{save_name}_state.db")
-        self.history_db = Database(sqlite3.connect(f"data/{adventure_name}_history.db", check_same_thread=False))
+        self.history_db = Database(sqlite3.connect(f"data/{adventure_name}_{save_name}_history.db", check_same_thread=False))
         self.context_table = SQLiteVSS(table="mythos", embedding=self.embeddings, connection=self.mythos_db)
         self.events_table = SQLiteVSS(table="events", embedding=self.embeddings, connection=self.state_db)
 
@@ -37,9 +38,4 @@ class SqlClient:
         self.events_table.add_texts(payload)
 
     def update_history(self, content: List[str], role: List[str], timestamp: List[float]):
-        self.history_db["history"].insert(
-            [
-                {"content": content_object, "role": content_role, "time_ingested_dt": ts}
-                for content_object, content_role, ts in zip(content, role, timestamp)
-            ]
-        )
+        self.history_db["history"].insert([{"content": content, "role": role, "time_ingested_dt": timestamp}])
