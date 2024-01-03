@@ -4,7 +4,7 @@ import httpx
 import streamlit as st
 from structlog import get_logger
 
-from request_types import AppendMessage, LLMResponse, NarrationRequest, ResolveSkillCheckRequest
+from module.request_types import AppendMessage, LLMResponse, NarrationRequest, ResolveSkillCheckRequest
 
 url = "http://127.0.0.1:8000"
 
@@ -15,7 +15,8 @@ class Request:
         self.path = "{url}/{path}"
 
     def post(self, path: str, data: Dict):
-        return httpx.post(self.path.format(url=self.url, path=path), json=data).json()
+        url = self.path.format(url=self.url, path=path)
+        return httpx.post(url, json=data, timeout=120).json()
 
     def get(self, path: str):
         return httpx.get(self.path.format(url=self.url, path=path)).json()
@@ -37,8 +38,7 @@ tokens = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "sanity" not in st.session_state:
-    st.session_state.sanity = request.get("current_sanity")["character_sanity"]
+st.session_state.sanity = request.get("current_sanity")["character_sanity"]
 
 if "character_attributes" not in st.session_state:
     st.session_state.character_attributes = request.get("character_data")
@@ -54,8 +54,8 @@ message_placeholder = st.empty()
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
-    with st.chat_message(message.role):
-        st.markdown(message.content)
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 full_response = ""
 
 # Accept user input
@@ -91,13 +91,14 @@ if tokens:
     llm_response = LLMResponse(llm_response=full_response)
     cause_insanity = request.post("determine_if_sanity_check", llm_response.model_dump(mode="json"))
     if cause_insanity == 1:
-        tokens = request.stream("narrate_bout_of_insanity", llm_response.model_dump(mode="json"))
-        with tokens as r:
-            for payload in r.iter_raw():
-                full_response += payload.decode("UTF-8")
-                message_placeholder.markdown(full_response + "▌")
-        llm_response.llm_response = full_response
-        request.post("assess_sanity_loss", llm_response.model_dump(mode="json"))
+        if request.get("do_sanity_check"):
+            tokens = request.stream("narrate_bout_of_insanity", llm_response.model_dump(mode="json"))
+            with tokens as r:
+                for payload in r.iter_raw():
+                    full_response += payload.decode("UTF-8")
+                    message_placeholder.markdown(full_response + "▌")
+            llm_response.llm_response = full_response
+            request.post("assess_sanity_loss", llm_response.model_dump(mode="json"))
     message = AppendMessage(role="assistant", content=full_response)
     request.post("append_message", message.model_dump(mode="json"))
     request.post("update_game_state", llm_response.model_dump(mode="json"))
